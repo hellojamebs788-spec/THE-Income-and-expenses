@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกรายรับ-รายจ่าย (Easy Spend)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fa-solid fa-wallet"></i> Easy Spend</h1>
+            <p>บันทึกรายรับ-รายจ่าย ใช้งานง่าย</p>
+        </header>
+
+        <div class="dashboard">
+            <div class="balance-card">
+                <h3>ยอดเงินคงเหลือคงเหลือ</h3>
+                <h2 id="total-balance">฿0.00</h2>
+            </div>
+            <div class="summary-box">
+                <div class="income-box">
+                    <p><i class="fa-solid fa-arrow-down"></i> รายรับ</p>
+                    <h4 id="total-income">฿0.00</h4>
+                </div>
+                <div class="expense-box">
+                    <p><i class="fa-solid fa-arrow-up"></i> รายจ่าย</p>
+                    <h4 id="total-expense">฿0.00</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3><i class="fa-solid fa-plus-circle"></i> เพิ่มรายการใหม่</h3>
+            <form id="transaction-form">
+                <div class="form-group">
+                    <label for="description">รายละเอียดรายการ</label>
+                    <input type="text" id="description" placeholder="เช่น เงินเดือน, ค่าอาหาร, ซื้อของ" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="amount">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="type">ประเภท</label>
+                        <select id="type" required>
+                            <option value="income" class="text-success">รายรับ (+)</option>
+                            <option value="expense" class="text-danger">รายจ่าย (-)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-save"></i> บันทึกรายการ</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3><i class="fa-solid fa-history"></i> ประวัติรายการ</h3>
+            <ul id="transaction-list" class="transaction-list">
+                <li class="loading">กำลังโหลดข้อมูล...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
