@@ -96,9 +96,12 @@ async function updateUI() {
     }
 
     listEl.innerHTML = '';
+    
+    // 1. ตัวแปรคำนวณภาพรวมทั้งหมด (All-time) เพื่อหาเงินที่เหลืออยู่ในกระเป๋าจริง ๆ
     let totalIncome = 0;
     let totalExpense = 0;
     
+    // 2. ตัวแปรคำนวณเฉพาะ "เดือนปัจจุบัน"
     let monthIncome = 0;
     let monthExpense = 0;
     let todayExpense = 0;
@@ -116,14 +119,14 @@ async function updateUI() {
         const amount = parseFloat(transaction.amount);
         const tDate = new Date(transaction.created_at);
 
-        // 1. ยอดรวมทั้งหมด (All-time)
+        // คำนวณยอดสุทธิสะสมทั้งหมดตั้งแต่เริ่มใช้แอป (ใช้แสดงกระเป๋าเงินรวมด้านบน)
         if (isIncome) {
             totalIncome += amount;
         } else {
             totalExpense += amount;
         }
 
-        // 2. เช็ครายการของเดือนปัจจุบัน
+        // คัดกรองข้อมูล: คิดสถิติเฉพาะรายการที่เกิดขึ้นใน "ปีและเดือนปัจจุบัน"
         if (tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth) {
             if (isIncome) {
                 monthIncome += amount;
@@ -131,7 +134,7 @@ async function updateUI() {
                 monthExpense += amount;
             }
 
-            // 3. เช็ครายการของวันนี้
+            // คัดกรองข้อมูล: คิดเฉพาะของวันนี้
             if (tDate.getDate() === currentDay) {
                 if (!isIncome) {
                     todayExpense += amount;
@@ -139,9 +142,9 @@ async function updateUI() {
             }
         }
 
+        // สร้างรายการประวัติแสดงผลด้านล่าง
         const li = document.createElement('li');
         li.classList.add(transaction.type);
-        
         li.innerHTML = `
             <div class="list-details">
                 <span class="list-title">${transaction.description}</span>
@@ -157,26 +160,27 @@ async function updateUI() {
         listEl.appendChild(li);
     });
 
-    // ยอดรวมเดือนนี้คงเหลือ
+    // คำนวณหาเงินคงเหลือประจำเดือนนี้
     const monthBalance = monthIncome - monthExpense;
     
-    // ปรับปรุงสูตร: คำนวณหาเงินคงเหลือปัจจุบันของเดือนนี้ก่อน แล้วค่อยนำมาหารเฉลี่ยจำนวนวันที่เหลืออยู่
-    // วิธีนี้จะช่วยรองรับกรณีเพิ่งใส่รายรับเข้ามาในวันนี้ได้แม่นยำขึ้น
+    // คำนวณงบรายวัน (คิดเฉลี่ยจาก รายรับเดือนนี้ หักลบ รายจ่ายที่เกิดขึ้นแล้วก่อนหน้าวันนี้ แล้วหารวัน)
     let todayAllowance = 0;
     if (monthIncome > 0) {
         todayAllowance = (monthBalance + todayExpense) / daysRemaining - todayExpense;
     }
 
-    // ป้องกันกรณีคำนวณแล้วติดลบ ให้แสดงเป็น 0
+    // ป้องกันกรณีคำนวณแล้วงบวันนี้ติดลบ ให้แสดงเป็น 0
     if (todayAllowance < 0) {
         todayAllowance = 0;
     }
 
-    // อัปเดตข้อมูลลงหน้าจอแสดงผล
+    // ยอดรวมทั้งหมดในกระเป๋า (All-time)
     const totalBalance = totalIncome - totalExpense;
-    balanceEl.innerText = formatCurrency(totalBalance);
-    incomeEl.innerText = formatCurrency(totalIncome);
-    expenseEl.innerText = formatCurrency(totalExpense);
+    
+    // แสดงผลลงหน้าจอ
+    balanceEl.innerText = formatCurrency(totalBalance); // ยอดคงเหลือสุทธิในกระเป๋าจริง
+    incomeEl.innerText = formatCurrency(monthIncome);   // เปลี่ยนเป็น: รายรับเฉพาะเดือนนี้
+    expenseEl.innerText = formatCurrency(monthExpense); // เปลี่ยนเป็น: รายจ่ายเฉพาะเดือนนี้
     
     monthBalanceEl.innerText = formatCurrency(monthBalance);
     todayAllowanceEl.innerText = formatCurrency(todayAllowance);
