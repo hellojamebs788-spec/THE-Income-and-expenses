@@ -99,7 +99,6 @@ async function updateUI() {
     let totalIncome = 0;
     let totalExpense = 0;
     
-    // ตัวแปรสำหรับคำนวณรายเดือน / รายวัน
     let monthIncome = 0;
     let monthExpense = 0;
     let todayExpense = 0;
@@ -109,9 +108,8 @@ async function updateUI() {
     const currentMonth = now.getMonth();
     const currentDay = now.getDate();
 
-    // หาจำนวนวันทั้งหมดในเดือนนี้ และจำนวนวันที่เหลืออยู่
     const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const daysRemaining = totalDaysInMonth - currentDay + 1; // นับรวมวันนี้ด้วย
+    const daysRemaining = totalDaysInMonth - currentDay + 1;
 
     transactions.forEach(transaction => {
         const isIncome = transaction.type === 'income';
@@ -125,7 +123,7 @@ async function updateUI() {
             totalExpense += amount;
         }
 
-        // 2. เช็คว่าเป็นรายการของ "เดือนปัจจุบัน" หรือไม่
+        // 2. เช็ครายการของเดือนปัจจุบัน
         if (tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth) {
             if (isIncome) {
                 monthIncome += amount;
@@ -133,10 +131,10 @@ async function updateUI() {
                 monthExpense += amount;
             }
 
-            // 3. เช็คว่าเป็นรายการของ "วันนี้" หรือไม่
+            // 3. เช็ครายการของวันนี้
             if (tDate.getDate() === currentDay) {
                 if (!isIncome) {
-                    todayExpense += amount; // รวมรายจ่ายเฉพาะของวันนี้
+                    todayExpense += amount;
                 }
             }
         }
@@ -159,15 +157,18 @@ async function updateUI() {
         listEl.appendChild(li);
     });
 
-    // --- สูตรการคำนวณเงินที่ใช้ได้ต่อวัน ---
+    // ยอดรวมเดือนนี้คงเหลือ
     const monthBalance = monthIncome - monthExpense;
     
-    // งบประมาณเฉลี่ยต่อวันที่ควรใช้ได้ = (รายรับเดือนนี้ - รายจ่ายของวันก่อนๆ) หารด้วย จำนวนวันที่เหลืออยู่ในเดือน
-    const budgetPerDayTotal = (monthIncome - (monthExpense - todayExpense)) / daysRemaining;
-    let todayAllowance = budgetPerDayTotal - todayExpense;
+    // ปรับปรุงสูตร: คำนวณหาเงินคงเหลือปัจจุบันของเดือนนี้ก่อน แล้วค่อยนำมาหารเฉลี่ยจำนวนวันที่เหลืออยู่
+    // วิธีนี้จะช่วยรองรับกรณีเพิ่งใส่รายรับเข้ามาในวันนี้ได้แม่นยำขึ้น
+    let todayAllowance = 0;
+    if (monthIncome > 0) {
+        todayAllowance = (monthBalance + todayExpense) / daysRemaining - todayExpense;
+    }
 
-    // ถ้าไม่มีรายรับในเดือนนี้เลย หรือเงินติดลบ ให้เซ็ตงบวันนี้เป็น 0
-    if (monthIncome === 0 || todayAllowance < 0) {
+    // ป้องกันกรณีคำนวณแล้วติดลบ ให้แสดงเป็น 0
+    if (todayAllowance < 0) {
         todayAllowance = 0;
     }
 
@@ -177,7 +178,6 @@ async function updateUI() {
     incomeEl.innerText = formatCurrency(totalIncome);
     expenseEl.innerText = formatCurrency(totalExpense);
     
-    // แสดงผลฟีเจอร์ใหม่
     monthBalanceEl.innerText = formatCurrency(monthBalance);
     todayAllowanceEl.innerText = formatCurrency(todayAllowance);
 }
