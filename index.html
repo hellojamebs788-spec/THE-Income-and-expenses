@@ -19,16 +19,28 @@
 
         <div class="dashboard">
             <div class="balance-card">
-                <h3>ยอดเงินคงเหลือคงเหลือ</h3>
+                <h3>ยอดเงินคงเหลือทั้งหมด</h3>
                 <h2 id="total-balance">฿0.00</h2>
             </div>
+            
+            <div class="periodic-summary">
+                <div class="period-box">
+                    <span><i class="fa-solid fa-calendar-days"></i> เดือนนี้คงเหลือ</span>
+                    <h4 id="month-balance">฿0.00</h4>
+                </div>
+                <div class="period-box highlight">
+                    <span><i class="fa-solid fa-calculator"></i> วันนี้ใช้ได้อีก</span>
+                    <h4 id="today-allowance">฿0.00</h4>
+                </div>
+            </div>
+
             <div class="summary-box">
                 <div class="income-box">
-                    <p><i class="fa-solid fa-arrow-down"></i> รายรับ</p>
+                    <p><i class="fa-solid fa-arrow-down"></i> รายรับรวม</p>
                     <h4 id="total-income">฿0.00</h4>
                 </div>
                 <div class="expense-box">
-                    <p><i class="fa-solid fa-arrow-up"></i> รายจ่าย</p>
+                    <p><i class="fa-solid fa-arrow-up"></i> รายจ่ายรวม</p>
                     <h4 id="total-expense">฿0.00</h4>
                 </div>
             </div>
