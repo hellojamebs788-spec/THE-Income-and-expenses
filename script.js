@@ -10,6 +10,8 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const balanceEl = document.getElementById('total-balance');
 const incomeEl = document.getElementById('total-income');
 const expenseEl = document.getElementById('total-expense');
+const monthBalanceEl = document.getElementById('month-balance');
+const todayAllowanceEl = document.getElementById('today-allowance');
 const listEl = document.getElementById('transaction-list');
 const formEl = document.getElementById('transaction-form');
 const descriptionEl = document.getElementById('description');
@@ -88,21 +90,55 @@ async function updateUI() {
         balanceEl.innerText = '฿0.00';
         incomeEl.innerText = '฿0.00';
         expenseEl.innerText = '฿0.00';
+        monthBalanceEl.innerText = '฿0.00';
+        todayAllowanceEl.innerText = '฿0.00';
         return;
     }
 
     listEl.innerHTML = '';
     let totalIncome = 0;
     let totalExpense = 0;
+    
+    // ตัวแปรสำหรับคำนวณรายเดือน / รายวัน
+    let monthIncome = 0;
+    let monthExpense = 0;
+    let todayExpense = 0;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentDay = now.getDate();
+
+    // หาจำนวนวันทั้งหมดในเดือนนี้ และจำนวนวันที่เหลืออยู่
+    const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const daysRemaining = totalDaysInMonth - currentDay + 1; // นับรวมวันนี้ด้วย
 
     transactions.forEach(transaction => {
         const isIncome = transaction.type === 'income';
         const amount = parseFloat(transaction.amount);
+        const tDate = new Date(transaction.created_at);
 
+        // 1. ยอดรวมทั้งหมด (All-time)
         if (isIncome) {
             totalIncome += amount;
         } else {
             totalExpense += amount;
+        }
+
+        // 2. เช็คว่าเป็นรายการของ "เดือนปัจจุบัน" หรือไม่
+        if (tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth) {
+            if (isIncome) {
+                monthIncome += amount;
+            } else {
+                monthExpense += amount;
+            }
+
+            // 3. เช็คว่าเป็นรายการของ "วันนี้" หรือไม่
+            if (tDate.getDate() === currentDay) {
+                if (!isIncome) {
+                    todayExpense += amount; // รวมรายจ่ายเฉพาะของวันนี้
+                }
+            }
         }
 
         const li = document.createElement('li');
@@ -123,10 +159,27 @@ async function updateUI() {
         listEl.appendChild(li);
     });
 
+    // --- สูตรการคำนวณเงินที่ใช้ได้ต่อวัน ---
+    const monthBalance = monthIncome - monthExpense;
+    
+    // งบประมาณเฉลี่ยต่อวันที่ควรใช้ได้ = (รายรับเดือนนี้ - รายจ่ายของวันก่อนๆ) หารด้วย จำนวนวันที่เหลืออยู่ในเดือน
+    const budgetPerDayTotal = (monthIncome - (monthExpense - todayExpense)) / daysRemaining;
+    let todayAllowance = budgetPerDayTotal - todayExpense;
+
+    // ถ้าไม่มีรายรับในเดือนนี้เลย หรือเงินติดลบ ให้เซ็ตงบวันนี้เป็น 0
+    if (monthIncome === 0 || todayAllowance < 0) {
+        todayAllowance = 0;
+    }
+
+    // อัปเดตข้อมูลลงหน้าจอแสดงผล
     const totalBalance = totalIncome - totalExpense;
     balanceEl.innerText = formatCurrency(totalBalance);
     incomeEl.innerText = formatCurrency(totalIncome);
     expenseEl.innerText = formatCurrency(totalExpense);
+    
+    // แสดงผลฟีเจอร์ใหม่
+    monthBalanceEl.innerText = formatCurrency(monthBalance);
+    todayAllowanceEl.innerText = formatCurrency(todayAllowance);
 }
 
 // Form Submit Handler
