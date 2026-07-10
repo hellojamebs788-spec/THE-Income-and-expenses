@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Easy Spend & Master Debt Tracker</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <!-- Tab Switcher Navigation -->
         <nav class="tab-navigation">
             <button class="tab-btn active" onclick="switchTab('expense-tab')">
                 <i class="fa-solid fa-wallet"></i> รายรับ-รายจ่าย
@@ -24,14 +21,12 @@
             </button>
         </nav>
 
-        <!-- ==================== TAB 1: EXPENSE TRACKER ==================== -->
         <div id="expense-tab" class="tab-content active">
             <header>
                 <h1>Easy Spend</h1>
                 <p>บันทึกรายรับ-รายจ่ายรายวัน</p>
             </header>
 
-            <!-- Dashboard Card -->
             <div class="dashboard">
                 <div class="balance-card">
                     <h3>ยอดเงินคงเหลือทั้งหมด</h3>
@@ -65,7 +60,6 @@
                 </div>
             </div>
 
-            <!-- Form Card -->
             <div class="card">
                 <h3><i class="fa-solid fa-plus-circle"></i> เพิ่มรายการใหม่</h3>
                 <form id="transaction-form">
@@ -90,7 +84,6 @@
                 </form>
             </div>
 
-            <!-- History Card -->
             <div class="card">
                 <h3><i class="fa-solid fa-history"></i> ประวัติรายการ</h3>
                 <ul id="transaction-list" class="transaction-list">
@@ -99,19 +92,25 @@
             </div>
         </div>
 
-        <!-- ==================== TAB 2: DEBT TRACKER ==================== -->
         <div id="debt-tab" class="tab-content">
             <header>
                 <h1>Debt Master</h1>
                 <p>จัดการหนี้สินหลักและชำระยอดผ่อนสะสม</p>
             </header>
 
-            <!-- Dashboard หนี้สิน -->
             <div class="dashboard debt-bg">
                 <div class="balance-card">
                     <h3>รวมภาระหนี้สินคงเหลือจริง</h3>
                     <h2 id="active-debt">฿0.00</h2>
                 </div>
+                
+                <div class="periodic-summary">
+                    <div class="period-box highlight" style="background: rgba(255,255,255,0.25);">
+                        <span><i class="fa-solid fa-hand-holding-dollar"></i> ยอดต้องผ่อนรวม / เดือน</span>
+                        <h4 id="total-monthly-payment">฿0.00</h4>
+                    </div>
+                </div>
+
                 <div class="summary-box">
                     <div class="income-box">
                         <p><i class="fa-solid fa-receipt"></i> ยอดหนี้ตั้งต้นทั้งหมด</p>
@@ -124,7 +123,6 @@
                 </div>
             </div>
 
-            <!-- ฟอร์มบันทึกหนี้สิน Master -->
             <div class="card">
                 <h3><i class="fa-solid fa-folder-plus"></i> ลงทะเบียนหนี้สินหลัก (Master List)</h3>
                 <form id="debt-form">
@@ -146,18 +144,17 @@
                 </form>
             </div>
 
-            <!-- รายการหนี้สิน Master List -->
             <div class="card">
-                <h3><i class="fa-solid fa-list-ul"></i> รายการหนี้สินและสถานะงวดผ่อน</h3>
+                <div class="debt-list-header">
+                    <h3><i class="fa-solid fa-list-ul"></i> รายการหนี้สินและสถานะงวดผ่อน</h3>
+                    <div class="sort-container">
+                        <label for="debt-sort"><i class="fa-solid fa-arrow-down-a-z"></i> เรียงจาก:</label>
+                        <select id="debt-sort" onchange="changeDebtSort(this.value)">
+                            <option value="latest">วันที่บันทึก (ล่าสุด)</option>
+                            <option value="amount-asc">ยอดหนี้น้อย ➡️ มาก</option>
+                            <option value="amount-desc">ยอดหนี้มาก ➡️ น้อย</option>
+                        </select>
+                    </div>
+                </div>
                 <ul id="debt-list" class="transaction-list">
-                    <li class="loading">กำลังโหลดข้อมูล...</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Supabase Client JS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+                    <li class="loading">กำลังโหลดข้อมูล...
