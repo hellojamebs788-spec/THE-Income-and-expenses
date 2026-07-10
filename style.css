@@ -136,8 +136,42 @@ header p { font-size: 0.85rem; color: #718096; }
     color: #2d3748;
     margin-bottom: 12px;
     font-weight: 600;
+}
+
+/* Debt Header Layout with Sort Dropdown */
+.debt-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     border-bottom: 2px solid #edf2f7;
-    padding-bottom: 6px;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.debt-list-header h3 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.sort-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sort-container label {
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    color: #718096;
+    white-space: nowrap;
+}
+
+.sort-container select {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    border: 1px solid #cbd5e0;
+    background-color: #fff;
+    width: auto;
 }
 
 .form-group { margin-bottom: 12px; }
@@ -174,7 +208,7 @@ input:focus, select:focus { outline: none; border-color: #4299e1; background-col
 .btn-submit.btn-debt { background-color: #4a5568; }
 .btn-submit:hover { opacity: 0.9; }
 
-.transaction-list { list-style-type: none; max-height: 320px; overflow-y: auto; }
+.transaction-list { list-style-type: none; max-height: 350px; overflow-y: auto; }
 .transaction-list li {
     background-color: #f7fafc;
     display: flex;
