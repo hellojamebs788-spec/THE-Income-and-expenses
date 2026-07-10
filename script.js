@@ -129,10 +129,10 @@ async function getDebts() {
     } catch (error) { console.error(error.message); return []; }
 }
 
-// ฟังก์ชันสำหรับ "แก้ไขยอดผ่อนต่อเดือน" อัปเดตไปยังฐานข้อมูล Supabase
+// ฟังก์ชันสำหรับ "แก้ไขยอดผ่อนต่อเดือน"
 async function editMonthlyPayment(id, currentMonthly, title) {
     const newMonthlyStr = prompt(`แก้ไขยอดผ่อนต่อเดือนสำหรับ "${title}":`, currentMonthly);
-    if (newMonthlyStr === null) return; // กดยกเลิก
+    if (newMonthlyStr === null) return;
     
     const newMonthly = parseFloat(newMonthlyStr);
     if (isNaN(newMonthly) || newMonthly <= 0) {
@@ -145,9 +145,27 @@ async function editMonthlyPayment(id, currentMonthly, title) {
         if (error) throw error;
         alert('แก้ไขยอดผ่อนเรียบร้อยแล้ว!');
         updateDebtUI();
-    } catch (error) {
-        alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message);
+    } catch (error) { alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message); }
+}
+
+// ฟังก์ชันสำหรับ "แก้ไขยอดหนี้คงเหลือปัจจุบัน" (ฟีเจอร์ใหม่ที่คุณเลือก)
+async function editRemainingAmount(id, currentRemaining, title) {
+    const newRemainingStr = prompt(`แก้ไขยอดหนี้คงเหลือปัจจุบันสำหรับ "${title}":`, currentRemaining);
+    if (newRemainingStr === null) return;
+    
+    const newRemaining = parseFloat(newRemainingStr);
+    if (isNaN(newRemaining) || newRemaining < 0) {
+        alert("กรุณากรอกจำนวนเงินให้ถูกต้องและไม่ต่ำกว่า 0 บาท");
+        return;
     }
+
+    try {
+        const newStatus = newRemaining <= 0 ? 'paid' : 'active';
+        const { error } = await supabaseClient.from('debts').update({ remaining_amount: newRemaining, status: newStatus }).eq('id', id);
+        if (error) throw error;
+        alert('แก้ไขยอดหนี้คงเหลือเรียบร้อยแล้ว!');
+        updateDebtUI();
+    } catch (error) { alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message); }
 }
 
 async function payInstallment(id, title, monthlyPayment, remainingAmount) {
@@ -167,9 +185,7 @@ async function payInstallment(id, title, monthlyPayment, remainingAmount) {
 
         alert('ชำระค่างวดสำเร็จและบันทึกลงในรายจ่ายเรียบร้อยแล้ว!');
         updateDebtUI();
-    } catch (error) {
-        alert('เกิดข้อผิดพลาด: ' + error.message);
-    }
+    } catch (error) { alert('เกิดข้อผิดพลาด: ' + error.message); }
 }
 
 async function deleteDebt(id) {
@@ -230,9 +246,18 @@ async function updateDebtUI() {
                 ${monthsLeftStr}
             </div>
             <div class="list-amount text-danger">
-                <div style="text-align: right;">
-                    <div>${formatCurrency(remaining)}</div>
-                    <div style="font-size: 0.7rem; color: #a0aec0; font-weight: normal;">จากเดิม ${formatCurrency(initial)}</div>
+                <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
+                    <div>
+                        <div style="font-weight: 700;">
+                            ${formatCurrency(remaining)}
+                            ${debt.status === 'active' ? `
+                                <button class="btn-delete" style="color: #4a5568; padding: 0 2px; font-size: 0.8rem;" onclick="editRemainingAmount(${debt.id}, ${remaining}, '${debt.title}')" title="แก้ไขยอดหนี้คงเหลือ">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div style="font-size: 0.7rem; color: #a0aec0; font-weight: normal;">จากเดิม ${formatCurrency(initial)}</div>
+                    </div>
                 </div>
                 <div class="action-btns">
                     ${debt.status === 'active' ? `
@@ -267,9 +292,7 @@ debtFormEl.addEventListener('submit', async (e) => {
         document.getElementById('debt-amount').value = '';
         document.getElementById('debt-monthly').value = '';
         updateDebtUI();
-    } catch (error) {
-        alert(error.message);
-    }
+    } catch (error) { alert(error.message); }
 });
 
 // Initial Load
