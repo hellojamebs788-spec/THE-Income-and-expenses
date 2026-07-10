@@ -5,7 +5,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Tab Switcher Logic
+// Tab Switcher Controller
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -17,7 +17,11 @@ function switchTab(tabId) {
     if(tabId === 'debt-tab') updateDebtUI();
 }
 
-// ==================== CODE ZONE 1: EXPENSE SYSTEM ====================
+function formatCurrency(num) {
+    return '฿' + parseFloat(num).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+}
+
+// ==================== ZONE 1: EXPENSE SYSTEM LOGIC ====================
 const balanceEl = document.getElementById('total-balance');
 const incomeEl = document.getElementById('total-income');
 const expenseEl = document.getElementById('total-expense');
@@ -47,14 +51,6 @@ async function deleteTransaction(id) {
         const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
         if (error) throw error; updateUI(); 
     } catch (error) { alert(error.message); }
-}
-
-function formatCurrency(num) {
-    return '฿' + parseFloat(num).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
-}
-
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 async function updateUI() {
@@ -87,7 +83,10 @@ async function updateUI() {
         const li = document.createElement('li');
         li.classList.add(transaction.type);
         li.innerHTML = `
-            <div class="list-details"><span class="list-title">${transaction.description}</span><span class="list-date">${formatDate(transaction.created_at)}</span></div>
+            <div class="list-details">
+                <span class="list-title">${transaction.description}</span>
+                <span class="list-date">${tDate.toLocaleDateString('th-TH', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</span>
+            </div>
             <div class="list-amount ${transaction.type}">${isIncome ? '+' : '-'}${formatCurrency(amount)}
                 <button class="btn-delete" onclick="deleteTransaction(${transaction.id})"><i class="fa-solid fa-trash-can"></i></button>
             </div>`;
@@ -116,7 +115,7 @@ formEl.addEventListener('submit', async (e) => {
     }
 });
 
-// ==================== CODE ZONE 2: DEBT SYSTEM ====================
+// ==================== ZONE 2: MASTER DEBT SYSTEM LOGIC ====================
 const totalDebtEl = document.getElementById('total-debt');
 const activeDebtEl = document.getElementById('active-debt');
 const paidDebtEl = document.getElementById('paid-debt');
@@ -130,23 +129,33 @@ async function getDebts() {
     } catch (error) { console.error(error.message); return []; }
 }
 
-async function addDebt(title, total_amount, monthly_payment) {
-    try {
-        const { error } = await supabaseClient.from('debts').insert([{ title, total_amount, monthly_payment, status: 'active' }]);
-        if (error) throw error; return true;
-    } catch (error) { alert(error.message); return false; }
-}
+// ฟังก์ชันกดชำระงวดผ่อน (หัวใจหลักของการเชื่อมโยง)
+async function payInstallment(id, title, monthlyPayment, remainingAmount) {
+    const payment = Math.min(parseFloat(monthlyPayment), parseFloat(remainingAmount));
+    if (payment <= 0) return;
 
-async function toggleDebtStatus(id, currentStatus) {
-    const newStatus = currentStatus === 'active' ? 'paid' : 'active';
+    if (!confirm(`ยืนยันการชำระค่างวดสำหรับ "${title}" จำนวน ${formatCurrency(payment)}? \n(ระบบจะตัดหนี้และเพิ่มในบันทึกรายจ่ายให้อัตโนมัติ)`)) return;
+
     try {
-        const { error } = await supabaseClient.from('debts').update({ status: newStatus }).eq('id', id);
-        if (error) throw error; updateDebtUI();
-    } catch (error) { alert(error.message); }
+        const newRemaining = parseFloat(remainingAmount) - payment;
+        const newStatus = newRemaining <= 0 ? 'paid' : 'active';
+
+        // 1. ลดหนี้ในตาราง debts
+        const { error: debtError } = await supabaseClient.from('debts').update({ remaining_amount: newRemaining, status: newStatus }).eq('id', id);
+        if (debtError) throw debtError;
+
+        // 2. วิ่งไปสร้างรายจ่ายในตาราง transactions อัตโนมัติ
+        await addTransaction(`จ่ายค่างวด: ${title}`, payment, 'expense');
+
+        alert('ชำระค่างวดสำเร็จและบันทึกลงในรายจ่ายเรียบร้อยแล้ว!');
+        updateDebtUI();
+    } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+    }
 }
 
 async function deleteDebt(id) {
-    if(!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการหนี้สินนี้?')) return;
+    if(!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบหนี้หลักนี้ออกจากทะเบียน?')) return;
     try {
         const { error } = await supabaseClient.from('debts').delete().eq('id', id);
         if (error) throw error; updateDebtUI();
@@ -158,20 +167,34 @@ async function updateDebtUI() {
     const debts = await getDebts();
 
     if (debts.length === 0) {
-        debtListEl.innerHTML = '<li class="empty-state">ไม่มีรายการหนี้สิน/ผ่อนสินค้า</li>';
+        debtListEl.innerHTML = '<li class="empty-state">ไม่มีรายการหนี้สินใน Master List</li>';
         totalDebtEl.innerText = activeDebtEl.innerText = paidDebtEl.innerText = '฿0.00';
         return;
     }
 
     debtListEl.innerHTML = '';
-    let allDebt = 0, activeDebt = 0, paidDebt = 0;
+    let totalInitialDebt = 0, currentActiveDebt = 0, clearedDebt = 0;
 
     debts.forEach(debt => {
-        const amt = parseFloat(debt.total_amount);
+        const initial = parseFloat(debt.total_amount);
+        const remaining = parseFloat(debt.remaining_amount);
         const monthly = parseFloat(debt.monthly_payment);
-        allDebt += amt;
-        
-        if (debt.status === 'active') activeDebt += amt; else paidDebt += amt;
+
+        totalInitialDebt += initial;
+        if (debt.status === 'active') {
+            currentActiveDebt += remaining;
+        } else {
+            clearedDebt += initial;
+        }
+
+        // คำนวณจำนวนเดือนคงเหลือ (Countdown)
+        let monthsLeftStr = "";
+        if (debt.status === 'paid' || remaining <= 0) {
+            monthsLeftStr = `<span class="badge-countdown">ชำระหมดเกลี้ยงแล้ว 🎉</span>`;
+        } else {
+            const monthsLeft = Math.ceil(remaining / monthly);
+            monthsLeftStr = `<span class="badge-countdown"><i class="fa-solid fa-hourglass-half"></i> เหลืออีกประมาณ ${monthsLeft} เดือน</span>`;
+        }
 
         const li = document.createElement('li');
         li.className = debt.status === 'paid' ? 'paid' : 'debt-active';
@@ -179,23 +202,29 @@ async function updateDebtUI() {
         li.innerHTML = `
             <div class="list-details">
                 <span class="list-title">${debt.title}</span>
-                <span class="list-date">ผ่อนเดือนละ: ${formatCurrency(monthly)}</span>
+                <span class="list-date">ยอดผ่อนต่อเดือน: ${formatCurrency(monthly)}</span>
+                ${monthsLeftStr}
             </div>
-            <div class="list-amount">
-                ${formatCurrency(amt)}
+            <div class="list-amount text-danger">
+                <div style="text-align: right;">
+                    <div>${formatCurrency(remaining)}</div>
+                    <div style="font-size: 0.7rem; color: #a0aec0; font-weight: normal;">จากเดิม ${formatCurrency(initial)}</div>
+                </div>
                 <div class="action-btns">
-                    <button class="btn-action check-btn" onclick="toggleDebtStatus(${debt.id}, '${debt.status}')" title="เปลี่ยนสถานะการจ่าย">
-                        <i class="fa-solid ${debt.status === 'paid' ? 'fa-rotate-left' : 'fa-circle-check'}"></i>
-                    </button>
+                    ${debt.status === 'active' ? `
+                        <button class="btn-pay" onclick="payInstallment(${debt.id}, '${debt.title}', ${monthly}, ${remaining})">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> จ่ายงวด
+                        </button>
+                    ` : ''}
                     <button class="btn-delete" onclick="deleteDebt(${debt.id})"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
             </div>`;
         debtListEl.appendChild(li);
     });
 
-    totalDebtEl.innerText = formatCurrency(allDebt);
-    activeDebtEl.innerText = formatCurrency(activeDebt);
-    paidDebtEl.innerText = formatCurrency(paidDebt);
+    totalDebtEl.innerText = formatCurrency(totalInitialDebt);
+    activeDebtEl.innerText = formatCurrency(currentActiveDebt);
+    paidDebtEl.innerText = formatCurrency(clearedDebt);
 }
 
 debtFormEl.addEventListener('submit', async (e) => {
@@ -204,12 +233,18 @@ debtFormEl.addEventListener('submit', async (e) => {
     const amt = parseFloat(document.getElementById('debt-amount').value);
     const monthly = parseFloat(document.getElementById('debt-monthly').value);
 
-    if(!title || isNaN(amt) || amt <= 0) return;
-    if(await addDebt(title, amt, monthly)) {
+    if(!title || isNaN(amt) || amt <= 0 || isNaN(monthly) || monthly <= 0) return;
+    
+    try {
+        const { error } = await supabaseClient.from('debts').insert([{ title, total_amount: amt, remaining_amount: amt, monthly_payment: monthly, status: 'active' }]);
+        if (error) throw error;
+        
         document.getElementById('debt-title').value = '';
         document.getElementById('debt-amount').value = '';
         document.getElementById('debt-monthly').value = '';
         updateDebtUI();
+    } catch (error) {
+        alert(error.message);
     }
 });
 
