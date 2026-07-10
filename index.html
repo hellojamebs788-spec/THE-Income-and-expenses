@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบันทึกรายรับ-รายจ่าย (Easy Spend)</title>
+    <title>Easy Spend & Debt Tracker</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,69 +12,136 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1><i class="fa-solid fa-wallet"></i> Easy Spend</h1>
-            <p>บันทึกรายรับ-รายจ่าย ใช้งานง่าย</p>
-        </header>
+        <nav class="tab-navigation">
+            <button class="tab-btn active" onclick="switchTab('expense-tab')">
+                <i class="fa-solid fa-wallet"></i> รายรับ-รายจ่าย
+            </button>
+            <button class="tab-btn" onclick="switchTab('debt-tab')">
+                <i class="fa-solid fa-credit-card"></i> หนี้สิน & ผ่อนสินค้า
+            </button>
+        </nav>
 
-        <div class="dashboard">
-            <div class="balance-card">
-                <h3>ยอดเงินคงเหลือทั้งหมด</h3>
-                <h2 id="total-balance">฿0.00</h2>
-            </div>
-            
-            <div class="periodic-summary">
-                <div class="period-box">
-                    <span><i class="fa-solid fa-calendar-days"></i> เดือนนี้คงเหลือ</span>
-                    <h4 id="month-balance">฿0.00</h4>
+        <div id="expense-tab" class="tab-content active">
+            <header>
+                <h1>Easy Spend</h1>
+                <p>บันทึกรายรับ-รายจ่ายรายวัน</p>
+            </header>
+
+            <div class="dashboard">
+                <div class="balance-card">
+                    <h3>ยอดเงินคงเหลือทั้งหมด</h3>
+                    <h2 id="total-balance">฿0.00</h2>
                 </div>
-                <div class="period-box highlight">
-                    <span><i class="fa-solid fa-calculator"></i> วันนี้ใช้ได้อีก</span>
-                    <h4 id="today-allowance">฿0.00</h4>
+                
+                <div class="periodic-summary">
+                    <div class="period-box">
+                        <span><i class="fa-solid fa-calendar-days"></i> เดือนนี้คงเหลือ</span>
+                        <h4 id="month-balance">฿0.00</h4>
+                    </div>
+                    <div class="period-box highlight">
+                        <span><i class="fa-solid fa-calculator"></i> วันนี้ใช้ได้อีก</span>
+                        <h4 id="today-allowance">฿0.00</h4>
+                    </div>
+                </div>
+
+                <div class="summary-box three-cols">
+                    <div class="summary-col">
+                        <p><i class="fa-solid fa-arrow-down text-success"></i> รับเดือนนี้</p>
+                        <h5 id="total-income">฿0.00</h5>
+                    </div>
+                    <div class="summary-col">
+                        <p><i class="fa-solid fa-arrow-up text-danger"></i> จ่ายเดือนนี้</p>
+                        <h5 id="total-expense">฿0.00</h5>
+                    </div>
+                    <div class="summary-col today-box">
+                        <p><i class="fa-solid fa-basket-shopping text-warning"></i> จ่ายวันนี้</p>
+                        <h5 id="today-expense">฿0.00</h5>
+                    </div>
                 </div>
             </div>
 
-            <div class="summary-box">
-                <div class="income-box">
-                    <p><i class="fa-solid fa-arrow-down"></i> รายรับรวม</p>
-                    <h4 id="total-income">฿0.00</h4>
-                </div>
-                <div class="expense-box">
-                    <p><i class="fa-solid fa-arrow-up"></i> รายจ่ายรวม</p>
-                    <h4 id="total-expense">฿0.00</h4>
-                </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-plus-circle"></i> เพิ่มรายการใหม่</h3>
+                <form id="transaction-form">
+                    <div class="form-group">
+                        <label for="description">รายละเอียดรายการ</label>
+                        <input type="text" id="description" placeholder="เช่น ค่าอาหาร, เงินเดือน, ซื้อของ" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="amount">จำนวนเงิน (บาท)</label>
+                            <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="type">ประเภท</label>
+                            <select id="type" required>
+                                <option value="income" class="text-success">รายรับ (+)</option>
+                                <option value="expense" class="text-danger">รายจ่าย (-)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-save"></i> บันทึกรายการ</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-history"></i> ประวัติรายการ</h3>
+                <ul id="transaction-list" class="transaction-list">
+                    <li class="loading">กำลังโหลดข้อมูล...</li>
+                </ul>
             </div>
         </div>
 
-        <div class="card">
-            <h3><i class="fa-solid fa-plus-circle"></i> เพิ่มรายการใหม่</h3>
-            <form id="transaction-form">
-                <div class="form-group">
-                    <label for="description">รายละเอียดรายการ</label>
-                    <input type="text" id="description" placeholder="เช่น เงินเดือน, ค่าอาหาร, ซื้อของ" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="amount">จำนวนเงิน (บาท)</label>
-                        <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="type">ประเภท</label>
-                        <select id="type" required>
-                            <option value="income" class="text-success">รายรับ (+)</option>
-                            <option value="expense" class="text-danger">รายจ่าย (-)</option>
-                        </select>
-                    </div>
-                </div>
-                <button type="submit" class="btn-submit"><i class="fa-solid fa-save"></i> บันทึกรายการ</button>
-            </form>
-        </div>
+        <div id="debt-tab" class="tab-content">
+            <header>
+                <h1>Debt Tracker</h1>
+                <p>จัดการหนี้สิน บัตรเครดิต และสินค้าผ่อนชำระ</p>
+            </header>
 
-        <div class="card">
-            <h3><i class="fa-solid fa-history"></i> ประวัติรายการ</h3>
-            <ul id="transaction-list" class="transaction-list">
-                <li class="loading">กำลังโหลดข้อมูล...</li>
-            </ul>
+            <div class="dashboard debt-bg">
+                <div class="balance-card">
+                    <h3>รวมภาระหนี้สินทั้งหมด</h3>
+                    <h2 id="total-debt">฿0.00</h2>
+                </div>
+                <div class="summary-box">
+                    <div class="income-box">
+                        <p><i class="fa-solid fa-hourglass-half"></i> ยังคงเหลือหนี้</p>
+                        <h4 id="active-debt">฿0.00</h4>
+                    </div>
+                    <div class="expense-box">
+                        <p><i class="fa-solid fa-circle-check"></i> ชำระหมดแล้ว</p>
+                        <h4 id="paid-debt">฿0.00</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-receipt"></i> บันทึกหนี้สิน / รายการผ่อน</h3>
+                <form id="debt-form">
+                    <div class="form-group">
+                        <label for="debt-title">รายการหนี้สิน / ชื่อสินค้า</label>
+                        <input type="text" id="debt-title" placeholder="เช่น บัตรเครดิตใบ A, ผ่อนไอโฟน, กู้ยืม" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="debt-amount">ยอดหนี้ทั้งหมด (บาท)</label>
+                            <input type="number" id="debt-amount" step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="debt-monthly">ต้องผ่อนต่อเดือน (บาท)</label>
+                            <input type="number" id="debt-monthly" step="0.01" min="0.00" placeholder="0.00 (ใส่ 0 ถ้าไม่มีจ่ายรายเดือน)" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit btn-debt"><i class="fa-solid fa-save"></i> บันทึกหนี้สิน</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-list-check"></i> รายการหนี้สินทั้งหมด</h3>
+                <ul id="debt-list" class="transaction-list">
+                    <li class="loading">กำลังโหลดข้อมูล...</li>
+                </ul>
+            </div>
         </div>
     </div>
 
