@@ -5,6 +5,9 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ตัวแปรเก็บสถานะการเรียงลำดับหนี้สินปัจจุบัน (default คือ 'latest' เรียงตามวันที่ล่าสุด)
+let currentDebtSortMode = 'latest';
+
 // Tab Switcher Controller
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -119,17 +122,43 @@ formEl.addEventListener('submit', async (e) => {
 const totalDebtEl = document.getElementById('total-debt');
 const activeDebtEl = document.getElementById('active-debt');
 const paidDebtEl = document.getElementById('paid-debt');
+const totalMonthlyPaymentEl = document.getElementById('total-monthly-payment');
 const debtListEl = document.getElementById('debt-list');
 const debtFormEl = document.getElementById('debt-form');
 
 async function getDebts() {
     try {
-        const { data, error } = await supabaseClient.from('debts').select('*').order('status', { ascending: true }).order('created_at', { ascending: false });
+        const { data, error } = await supabaseClient.from('debts').select('*');
         if (error) throw error; return data;
     } catch (error) { console.error(error.message); return []; }
 }
 
-// ฟังก์ชันสำหรับ "แก้ไขยอดผ่อนต่อเดือน"
+// ฟังก์ชันเรียกทำงานเมื่อเปลี่ยนตัวเลือกการจัดเรียงลำดับ
+function changeDebtSort(sortMode) {
+    currentDebtSortMode = sortMode;
+    updateDebtUI(); // สั่งเรนเดอร์ UI ใหม่ตามลำดับที่เลือก
+}
+
+// ฟังก์ชันภายในในการคัดแยกและจัดเรียง Array ของหนี้สิน
+function sortDebtsArray(debtsArray, mode) {
+    // แยกหนี้สินที่ยังค้าง (active) กับหนี้ที่หมดแล้ว (paid) ออกจากกันก่อนเพื่อให้กลุ่มหมดแล้วอยู่ท้ายตารางเสมอ
+    let activeDebts = debtsArray.filter(d => d.status === 'active');
+    let paidDebts = debtsArray.filter(d => d.status === 'paid');
+
+    // จัดเรียงเฉพาะหนี้ที่ยังค้างอยู่
+    if (mode === 'latest') {
+        activeDebts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (mode === 'amount-asc') {
+        activeDebts.sort((a, b) => parseFloat(a.remaining_amount) - parseFloat(b.remaining_amount));
+    } else if (mode === 'amount-desc') {
+        activeDebts.sort((a, b) => parseFloat(b.remaining_amount) - parseFloat(a.remaining_amount));
+    }
+
+    // รวมตารางเอา paid ต่อท้ายล่าสุดเสมอ
+    paidDebts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return [...activeDebts, ...paidDebts];
+}
+
 async function editMonthlyPayment(id, currentMonthly, title) {
     const newMonthlyStr = prompt(`แก้ไขยอดผ่อนต่อเดือนสำหรับ "${title}":`, currentMonthly);
     if (newMonthlyStr === null) return;
@@ -148,7 +177,6 @@ async function editMonthlyPayment(id, currentMonthly, title) {
     } catch (error) { alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message); }
 }
 
-// ฟังก์ชันสำหรับ "แก้ไขยอดหนี้คงเหลือปัจจุบัน" (ฟีเจอร์ใหม่ที่คุณเลือก)
 async function editRemainingAmount(id, currentRemaining, title) {
     const newRemainingStr = prompt(`แก้ไขยอดหนี้คงเหลือปัจจุบันสำหรับ "${title}":`, currentRemaining);
     if (newRemainingStr === null) return;
@@ -198,16 +226,19 @@ async function deleteDebt(id) {
 
 async function updateDebtUI() {
     debtListEl.innerHTML = '<li class="loading">กำลังโหลดข้อมูล...</li>';
-    const debts = await getDebts();
+    let rawDebts = await getDebts();
 
-    if (debts.length === 0) {
+    if (rawDebts.length === 0) {
         debtListEl.innerHTML = '<li class="empty-state">ไม่มีรายการหนี้สินใน Master List</li>';
-        totalDebtEl.innerText = activeDebtEl.innerText = paidDebtEl.innerText = '฿0.00';
+        totalDebtEl.innerText = activeDebtEl.innerText = paidDebtEl.innerText = totalMonthlyPaymentEl.innerText = '฿0.00';
         return;
     }
 
+    // ทำการจัดเรียงลำดับข้อมูล Array ตามรูปแบบที่ผู้ใช้เลือกผ่าน Dropdown
+    const debts = sortDebtsArray(rawDebts, currentDebtSortMode);
+
     debtListEl.innerHTML = '';
-    let totalInitialDebt = 0, currentActiveDebt = 0, clearedDebt = 0;
+    let totalInitialDebt = 0, currentActiveDebt = 0, clearedDebt = 0, sumMonthlyCommitment = 0;
 
     debts.forEach(debt => {
         const initial = parseFloat(debt.total_amount);
@@ -217,6 +248,7 @@ async function updateDebtUI() {
         totalInitialDebt += initial;
         if (debt.status === 'active') {
             currentActiveDebt += remaining;
+            sumMonthlyCommitment += monthly; // สะสมรวมยอดค่างวดที่ต้องผ่อนจ่ายประจำเดือน
         } else {
             clearedDebt += initial;
         }
@@ -274,6 +306,7 @@ async function updateDebtUI() {
     totalDebtEl.innerText = formatCurrency(totalInitialDebt);
     activeDebtEl.innerText = formatCurrency(currentActiveDebt);
     paidDebtEl.innerText = formatCurrency(clearedDebt);
+    totalMonthlyPaymentEl.innerText = formatCurrency(sumMonthlyCommitment); // อัปเดตช่องแสดง Fix cost ต่อเดือน
 }
 
 debtFormEl.addEventListener('submit', async (e) => {
