@@ -129,7 +129,27 @@ async function getDebts() {
     } catch (error) { console.error(error.message); return []; }
 }
 
-// ฟังก์ชันกดชำระงวดผ่อน (หัวใจหลักของการเชื่อมโยง)
+// ฟังก์ชันสำหรับ "แก้ไขยอดผ่อนต่อเดือน" อัปเดตไปยังฐานข้อมูล Supabase
+async function editMonthlyPayment(id, currentMonthly, title) {
+    const newMonthlyStr = prompt(`แก้ไขยอดผ่อนต่อเดือนสำหรับ "${title}":`, currentMonthly);
+    if (newMonthlyStr === null) return; // กดยกเลิก
+    
+    const newMonthly = parseFloat(newMonthlyStr);
+    if (isNaN(newMonthly) || newMonthly <= 0) {
+        alert("กรุณากรอกจำนวนเงินให้ถูกต้องและมากกว่า 0 บาท");
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient.from('debts').update({ monthly_payment: newMonthly }).eq('id', id);
+        if (error) throw error;
+        alert('แก้ไขยอดผ่อนเรียบร้อยแล้ว!');
+        updateDebtUI();
+    } catch (error) {
+        alert('เกิดข้อผิดพลาดในการแก้ไข: ' + error.message);
+    }
+}
+
 async function payInstallment(id, title, monthlyPayment, remainingAmount) {
     const payment = Math.min(parseFloat(monthlyPayment), parseFloat(remainingAmount));
     if (payment <= 0) return;
@@ -140,11 +160,9 @@ async function payInstallment(id, title, monthlyPayment, remainingAmount) {
         const newRemaining = parseFloat(remainingAmount) - payment;
         const newStatus = newRemaining <= 0 ? 'paid' : 'active';
 
-        // 1. ลดหนี้ในตาราง debts
         const { error: debtError } = await supabaseClient.from('debts').update({ remaining_amount: newRemaining, status: newStatus }).eq('id', id);
         if (debtError) throw debtError;
 
-        // 2. วิ่งไปสร้างรายจ่ายในตาราง transactions อัตโนมัติ
         await addTransaction(`จ่ายค่างวด: ${title}`, payment, 'expense');
 
         alert('ชำระค่างวดสำเร็จและบันทึกลงในรายจ่ายเรียบร้อยแล้ว!');
@@ -187,7 +205,6 @@ async function updateDebtUI() {
             clearedDebt += initial;
         }
 
-        // คำนวณจำนวนเดือนคงเหลือ (Countdown)
         let monthsLeftStr = "";
         if (debt.status === 'paid' || remaining <= 0) {
             monthsLeftStr = `<span class="badge-countdown">ชำระหมดเกลี้ยงแล้ว 🎉</span>`;
@@ -202,7 +219,14 @@ async function updateDebtUI() {
         li.innerHTML = `
             <div class="list-details">
                 <span class="list-title">${debt.title}</span>
-                <span class="list-date">ยอดผ่อนต่อเดือน: ${formatCurrency(monthly)}</span>
+                <span class="list-date">
+                    ยอดผ่อนต่อเดือน: ${formatCurrency(monthly)}
+                    ${debt.status === 'active' ? `
+                        <button class="btn-delete" style="color: #4299e1; padding: 0 4px; display: inline-block; vertical-align: middle;" onclick="editMonthlyPayment(${debt.id}, ${monthly}, '${debt.title}')" title="แก้ไขค่างวด">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    ` : ''}
+                </span>
                 ${monthsLeftStr}
             </div>
             <div class="list-amount text-danger">
